@@ -365,7 +365,7 @@ def _wait(repo, url):
             print("That setup link expired. Run /codela:setup again.")
             return
     print("Still waiting for the browser. When you've finished there, run /codela:setup or "
-          "/codela:lessons (or start a new session) and Codela picks it up. The link works for 30 minutes.")
+          "/codela:lessons (or start a new session) and Codela picks it up. The link works for 24 hours.")
 
 
 if __name__ == "__main__":
