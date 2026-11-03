@@ -189,6 +189,16 @@ def full():
               "Set the plugin's `repo` option to owner/name.")
         return
     try:
+        claimed = claim_pending()  # a setup finished in the browser after /codela:setup stopped waiting
+    except Exception:
+        claimed = None
+    if claimed and claimed.get("status") == "done":
+        print(f"(Picked up your finished Codela setup for {claimed.get('repo') or repo}.)\n")
+    if not api_key():
+        print("Codela isn't connected on this machine yet, so there are no lessons to show. "
+              "Run /codela:setup to connect this repo.")
+        return
+    try:
         data = fetch(repo, "json")
     except Exception as e:
         print(f"Codela: could not reach {server_url()} ({e}).")
@@ -354,8 +364,8 @@ def _wait(repo, url):
         if res and res.get("status") == "expired":
             print("That setup link expired. Run /codela:setup again.")
             return
-    print("Still waiting for the browser. When you've finished there, run /codela:setup again "
-          "(or just start a new session — Codela picks it up automatically). The link works for 30 minutes.")
+    print("Still waiting for the browser. When you've finished there, run /codela:setup or "
+          "/codela:lessons (or start a new session) and Codela picks it up. The link works for 30 minutes.")
 
 
 if __name__ == "__main__":
