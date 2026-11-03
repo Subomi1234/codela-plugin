@@ -6,6 +6,9 @@
            first turn. Never fails the session: if Codela is unreachable it
            uses the last cached copy, or prints nothing.
   --full   Print every lesson in full (used by the /codela:lessons command).
+  --cloud  Like --hook, but only acts in cloud sessions (Claude Code on the web
+           and desktop cloud sessions), which don't load plugins. /codela:setup
+           commits a copy of this script into the repo for them.
   --setup  Link this repo to Codela (used by /codela:setup). Opens a browser
            page; the Codela key comes back from the server into
            ~/.codela/credentials.json and is never printed, so it never
@@ -131,7 +134,9 @@ def cache_path(repo):
     return os.path.join(base, re.sub(r"[^A-Za-z0-9_.-]", "_", repo) + ".json")
 
 
-def hook():
+def hook(cloud=False):
+    if cloud and os.environ.get("CLAUDE_CODE_REMOTE") != "true":
+        return  # local sessions get lessons from the installed plugin instead
     try:
         payload = json.load(sys.stdin)
     except Exception:
@@ -145,23 +150,36 @@ def hook():
     if not repo:
         return
     cache = cache_path(repo)
-    context, note = "", ""
+    context, note, warn = "", "", ""
     try:
         data = fetch(repo, "context")
         context = data.get("context") or ""
         if cache:
             with open(cache, "w") as f:
                 json.dump(data, f)
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            warn = "Codela: your Codela key isn't valid any more. Run /codela:setup to reconnect this repo."
     except Exception:
+        # Usually network: cloud sessions (Claude Code on the web) block unknown domains by default.
+        host = urllib.parse.urlparse(server_url()).hostname
+        warn = (f"Codela couldn't reach {host}, so this session has no production lessons. "
+                f"In Claude Code on the web, allow {host} in your environment's network access settings.")
         if cache and os.path.exists(cache):
             with open(cache) as f:
                 context = json.load(f).get("context") or ""
             note = "\n\n(Codela was unreachable; these are the last cached lessons.)"
+    if cloud and not api_key():
+        warn = ("Codela: add CODELA_API_KEY to this cloud environment's settings (and allow "
+                f"{urllib.parse.urlparse(server_url()).hostname} under network access) so sessions get "
+                "this repo's production lessons.")
+    out = {}
+    if warn and (api_key() or context or cloud):  # only nag people who have set Codela up
+        out["systemMessage"] = warn
     if context:
-        print(json.dumps({"hookSpecificOutput": {
-            "hookEventName": "SessionStart",
-            "additionalContext": context + note,
-        }}))
+        out["hookSpecificOutput"] = {"hookEventName": "SessionStart", "additionalContext": context + note}
+    if out:
+        print(json.dumps(out))
 
 
 def full():
@@ -196,12 +214,88 @@ def full():
         print()
 
 
+MARKETPLACE_REPO = "Subomi1234/codela-plugin"
+REPO_SCRIPT = ".claude/codela/codela_lessons.py"
+REPO_COMMAND = ".claude/commands/codela-lessons.md"
+
+
+def _toplevel(cwd):
+    try:
+        return subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+                              capture_output=True, text=True, timeout=5).stdout.strip() or None
+    except Exception:
+        return None
+
+
+def enable_in_repo(cwd):
+    """Commit-able files so Codela works for everyone who opens the repo, everywhere.
+
+    - .claude/settings.json: offers the Codela plugin to teammates on their own
+      machines, and adds a SessionStart hook for cloud sessions (Claude Code on
+      the web / desktop cloud), which don't load plugins.
+    - .claude/codela/codela_lessons.py: the script that hook runs (stdlib only).
+    - .claude/commands/codela-lessons.md: /codela-lessons for cloud sessions.
+    Returns the paths written, or None if settings.json couldn't be read.
+    """
+    root = _toplevel(cwd)
+    if not root:
+        return None
+    settings_path = os.path.join(root, ".claude", "settings.json")
+    try:
+        with open(settings_path) as f:
+            settings = json.load(f)
+    except FileNotFoundError:
+        settings = {}
+    except Exception:
+        return None  # don't rewrite a settings file we can't parse
+    hook_cmd = f'python3 "$CLAUDE_PROJECT_DIR/{REPO_SCRIPT}" --cloud'
+    settings.setdefault("extraKnownMarketplaces", {})["codela"] = {
+        "source": {"source": "github", "repo": MARKETPLACE_REPO}}
+    settings.setdefault("enabledPlugins", {})["codela@codela"] = True
+    starts = settings.setdefault("hooks", {}).setdefault("SessionStart", [])
+    if not any(h.get("command") == hook_cmd for g in starts for h in g.get("hooks", [])):
+        starts.append({"hooks": [{"type": "command", "command": hook_cmd, "timeout": 30}]})
+    os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+    with open(settings_path, "w") as f:
+        json.dump(settings, f, indent=2)
+        f.write("\n")
+
+    script_dst = os.path.join(root, REPO_SCRIPT)
+    os.makedirs(os.path.dirname(script_dst), exist_ok=True)
+    with open(os.path.abspath(__file__)) as src, open(script_dst, "w") as dst:
+        dst.write(src.read())
+
+    cmd_dst = os.path.join(root, REPO_COMMAND)
+    os.makedirs(os.path.dirname(cmd_dst), exist_ok=True)
+    with open(cmd_dst, "w") as f:
+        f.write("---\ndescription: Show the production lessons Codela has learned for this repo\n"
+                "allowed-tools: Bash(python3:*)\n---\n\n"
+                f'!`python3 "$CLAUDE_PROJECT_DIR/{REPO_SCRIPT}" --full || true`\n\n'
+                "Summarize them for the user: one line per lesson saying what broke in production "
+                "and what to do differently. If the user passed arguments, focus on: $ARGUMENTS\n")
+    return [".claude/settings.json", REPO_SCRIPT, REPO_COMMAND]
+
+
 def _done(res, repo):
     print(f"Codela is set up for {repo}"
           + (f" (service '{res['service']}')" if res.get("service") else "")
           + (f" in workspace '{res['workspace']}'" if res.get("workspace") else "") + ".")
     print("Your Codela key is saved in ~/.codela/credentials.json (not shown here). "
           "New Claude Code sessions in this repo will start with its production lessons.")
+    written = None
+    try:
+        written = enable_in_repo(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+    except Exception:
+        pass
+    if written:
+        host = urllib.parse.urlparse(server_url()).hostname
+        print("\nSo it works for everyone and everywhere (teammates, Claude desktop, Claude Code on the web), "
+              "I added these files to the repo — commit and push them:\n  " + "\n  ".join(written))
+        print("\nFor Claude Code on the web (cloud sessions don't load plugins), also, once per cloud "
+              "environment at claude.ai/code → environment settings:\n"
+              "  1. Environment variable CODELA_API_KEY = your Codela key "
+              "(usecodela.com/connect → More options).\n"
+              f"  2. Network access → Custom → allow {host}.")
 
 
 def setup():
@@ -271,7 +365,7 @@ if __name__ == "__main__":
         elif "--full" in sys.argv:
             full()
         else:
-            hook()
+            hook(cloud="--cloud" in sys.argv)
     except Exception:
         # A memory plugin must never break the session it's attached to.
         pass

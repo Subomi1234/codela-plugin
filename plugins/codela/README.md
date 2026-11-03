@@ -5,6 +5,17 @@
 Loads the production lessons Codela learned from real incidents in your repo
 into every Claude Code session, so the agent doesn't repeat them.
 
+## Where it works
+
+| | How |
+|---|---|
+| **Claude Code in a terminal** | Install the plugin (above) and run `/codela:setup`. |
+| **Claude desktop app** | Click **+** next to the prompt box → **Add plugins** → add the marketplace `Subomi1234/codela-plugin` and install **codela**, then run `/codela:setup`. |
+| **Claude Code on the web** (and desktop cloud sessions) | Cloud sessions don't load plugins, so `/codela:setup` adds a small hook to your repo instead: `.claude/settings.json`, `.claude/codela/codela_lessons.py` and `.claude/commands/codela-lessons.md`. **Commit them.** Then, once per cloud environment at claude.ai/code → environment settings: add the variable `CODELA_API_KEY` (your Codela key, from usecodela.com/connect → More options), and under network access choose **Custom** and allow `api.usecodela.com`. In cloud sessions, `/codela-lessons` shows the lessons. |
+
+The committed `.claude/settings.json` also offers the Codela plugin to
+teammates when they open the repo on their own machines.
+
 ## What it does
 
 - **On session start** (`SessionStart` hook): reads `owner/name` from the
