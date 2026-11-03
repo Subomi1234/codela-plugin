@@ -1,0 +1,15 @@
+Copyright (c) 2026 Codela. All rights reserved.
+
+This repository contains the Codela plugin for Claude Code. You may install
+and run it unmodified to use the Codela service (https://usecodela.com).
+You may not copy, modify, redistribute, sublicense or sell this software, or
+use it or any part of it to build a competing product or service, without
+prior written permission from Codela.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

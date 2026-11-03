@@ -1,0 +1,15 @@
+{
+  "name": "codela",
+  "owner": {
+    "name": "Codela",
+    "url": "https://usecodela.com"
+  },
+  "description": "Codela's Claude Code plugins: production memory for AI coding agents.",
+  "plugins": [
+    {
+      "name": "codela",
+      "source": "./plugins/codela",
+      "description": "Production memory for Claude Code: lessons Codela learned from real production incidents in your repo, loaded into every session."
+    }
+  ]
+}
