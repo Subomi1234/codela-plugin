@@ -207,7 +207,7 @@ def full():
     if not lessons:
         print(f"Codela has no production lessons for {repo} yet.")
         return
-    print(f"Codela — {len(lessons)} production lesson(s) for {repo}\n")
+    print(f"Codela: {len(lessons)} production lesson(s) for {repo}\n")
     for l in lessons:
         src = l.get("source") or {}
         print(f"## {l['name']} [{l['severity']}]")
@@ -300,7 +300,7 @@ def _done(res, repo):
     if written:
         host = urllib.parse.urlparse(server_url()).hostname
         print("\nSo it works for everyone and everywhere (teammates, Claude desktop, Claude Code on the web), "
-              "I added these files to the repo — commit and push them:\n  " + "\n  ".join(written))
+              "I added these files to the repo. Commit and push them:\n  " + "\n  ".join(written))
         print("\nFor Claude Code on the web (cloud sessions don't load plugins), also, once per cloud "
               "environment at claude.ai/code → environment settings:\n"
               "  1. Environment variable CODELA_API_KEY = your Codela key "
