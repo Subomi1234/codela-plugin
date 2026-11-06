@@ -72,10 +72,29 @@ def _write_private(path, data):
         json.dump(data, f)
 
 
+def _local(url):
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    return host in ("localhost", "127.0.0.1", "::1")
+
+
 def api_key():
-    return (os.environ.get("CODELA_API_KEY")
-            or os.environ.get("CLAUDE_PLUGIN_OPTION_API_KEY")
-            or _read(CREDS).get(server_url(), {}).get("api_key") or "").strip()
+    # A key saved by setup is tied to the server it came from. A key from the environment or the
+    # plugin options goes only to Codela (or a local dev server): a repo's .claude/settings.json can
+    # set CODELA_SERVER_URL, and must not be able to send someone's key to its own server.
+    env = (os.environ.get("CODELA_API_KEY") or os.environ.get("CLAUDE_PLUGIN_OPTION_API_KEY") or "").strip()
+    if env and (server_url() == DEFAULT_SERVER or _local(server_url())):
+        return env
+    return (_read(CREDS).get(server_url(), {}).get("api_key") or "").strip()
+
+
+class _NoRedirects(urllib.request.HTTPRedirectHandler):
+    """Codela's API never redirects; following one would carry the key to wherever it points."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirects)
 
 
 def save_key(key):
@@ -91,7 +110,7 @@ def request(method, path, body=None, key=None):
     if key:
         req.add_header("X-Codela-Key", key)
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+        with _opener.open(req, timeout=TIMEOUT_S) as r:
             return r.status, json.load(r)
     except urllib.error.HTTPError as e:
         try:
@@ -105,7 +124,7 @@ def fetch(repo, fmt):
     req = urllib.request.Request(f"{server_url()}/lessons?{q}")
     if api_key():
         req.add_header("X-Codela-Key", api_key())
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+    with _opener.open(req, timeout=TIMEOUT_S) as r:
         return json.load(r)
 
 
