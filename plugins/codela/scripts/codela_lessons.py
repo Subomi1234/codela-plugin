@@ -298,7 +298,7 @@ def enable_in_repo(cwd):
     os.makedirs(os.path.dirname(cmd_dst), exist_ok=True)
     with open(cmd_dst, "w") as f:
         f.write("---\ndescription: Show the production lessons Codela has learned for this repo\n"
-                "allowed-tools: Bash(python3:*)\n---\n\n"
+                f"allowed-tools: Bash(python3 \"$CLAUDE_PROJECT_DIR/{REPO_SCRIPT}\":*)\n---\n\n"
                 f'!`python3 "$CLAUDE_PROJECT_DIR/{REPO_SCRIPT}" --full || true`\n\n'
                 "Summarize them for the user: one line per lesson saying what broke in production "
                 "and what to do differently. If the user passed arguments, focus on: $ARGUMENTS\n")
