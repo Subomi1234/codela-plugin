@@ -368,6 +368,9 @@ def setup():
         pass
     print(f"{'Opened' if opened else 'Open'} this link to connect {repo} to Codela "
           f"(pick your observability tool, paste a read-only key, confirm the service):\n\n  {s['url']}\n")
+    if s.get("user_code"):
+        print(f"When the page asks for a code, type:  {s['user_code']}\n"
+              "(It proves the browser is yours; the link alone can't connect anything.)\n")
     print("Keys go into that page, never into this chat.")
     _wait(repo, s["url"])
 

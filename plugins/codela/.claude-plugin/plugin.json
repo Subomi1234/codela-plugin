@@ -1,6 +1,6 @@
 {
   "name": "codela",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Production memory for Claude Code: lessons Codela learned from real production incidents in this repo are loaded into every session, so the agent doesn't repeat them.",
   "author": {
     "name": "Codela",
